@@ -18,6 +18,7 @@ const postABook = async (req, res) => {
 const getAllBooks = async (req, res) => {
   try {
     const books = await Book.find().sort({ createdAt: -1 });
+
     res.status(200).send(books);
   } catch (error) {
     console.error("Error fetching books", error);
@@ -30,7 +31,7 @@ const getSingleBook = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const book = await Book.findById(id);
+    const book = await Book.findById(id).lean({ virtuals: true });
     const addBookToHistory = await User.findOneAndUpdate(
       { uid },
       { $addToSet: { bookHistory: book._id } },
@@ -132,6 +133,114 @@ const recommendedBooks = async (req, res) => {
   }
 };
 
+const addBookToFav = async (req, res, next) => {
+  try {
+    const bookId = req.params.id;
+    const uid = req.headers["x-user-uid"];
+    const user = await User.findOne({ uid });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const favBooks = user.favouriteBooks || [];
+
+    const bookIndex = favBooks.indexOf(bookId);
+
+    if (bookIndex !== -1) {
+      favBooks.splice(bookIndex, 1);
+    } else {
+      favBooks.push(bookId);
+    }
+    const bookHistory = user.bookHistory || [];
+    const isRec = bookHistory.indexOf(bookId);
+    if (isRec !== -1) {
+      // return false;
+    } else {
+      user.bookHistory.push(bookId);
+    }
+    user.favouriteBooks = favBooks;
+    await user.save();
+
+    return res.status(200).json({
+      message:
+        bookIndex !== -1
+          ? "Book removed from favourites"
+          : "Book added to favourites",
+      favouriteBooks: user.favouriteBooks,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+const getBookToFav = async (req, res, next) => {
+  try {
+    const uid = req.headers["x-user-uid"];
+    const user = await User.findOne({ uid }).populate({
+      path: "favouriteBooks",
+    });
+    const favBooks = user.favouriteBooks || [];
+    return res.status(200).json(favBooks);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+const rateBook = async (req, res) => {
+  const { stars } = req.body;
+  const uid = req.headers["x-user-uid"];
+  if (!uid)
+    return res.status(400).json({ message: "يجب ان تتوفر بيانات المستخدم" });
+  const { bookId } = req.params;
+  const userId = await User.findOne({ uid })._id;
+  if (stars < 1 || stars > 5) {
+    return res.status(400).json({ message: "التقييم يجب أن يكون من 1 إلى 5." });
+  }
+
+  const book = await Book.findById(bookId);
+  if (!book) return res.status(404).json({ message: "الكتاب غير موجود." });
+
+  const existingRating = book.ratings.find(
+    (r) => r.userId.toString() === userId.toString()
+  );
+
+  if (existingRating) {
+    existingRating.stars = stars;
+  } else {
+    book.ratings.push({ userId, stars });
+  }
+
+  await book.save();
+
+  const averageRating = book.getAverageRating();
+  res.json({ message: "تم التقييم", averageRating });
+};
+
+const searchBooks = async (req, res) => {
+  try {
+    const { search } = req.query;
+    let filter = {};
+    if (search) {
+      const regex = new RegExp(search, "i");
+      filter = {
+        $or: [
+          { title: { $regex: regex } },
+          { category: { $regex: regex } },
+          { author: { $regex: regex } },
+        ],
+      };
+    }
+    const books = await Book.find(filter).sort({ createdAt: -1 }).limit(8);
+
+    res.status(200).json(books);
+  } catch (error) {
+    console.error("Error fetching books", error);
+    res.status(500).json({ message: "Failed to fetch books" });
+  }
+};
+
 module.exports = {
   postABook,
   getAllBooks,
@@ -139,4 +248,8 @@ module.exports = {
   UpdateBook,
   deleteABook,
   recommendedBooks,
+  addBookToFav,
+  getBookToFav,
+  rateBook,
+  searchBooks,
 };

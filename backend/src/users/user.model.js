@@ -4,6 +4,7 @@ const bcrypt = require("bcrypt");
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
+    default: Date.now,
   },
   password: {
     type: String,
@@ -25,6 +26,12 @@ const userSchema = new mongoose.Schema({
     required: true,
   },
   bookHistory: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Book",
+    },
+  ],
+  favouriteBooks: [
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Book",

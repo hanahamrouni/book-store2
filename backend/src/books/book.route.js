@@ -7,6 +7,10 @@ const {
   UpdateBook,
   deleteABook,
   recommendedBooks,
+  addBookToFav,
+  getBookToFav,
+  rateBook,
+  searchBooks,
 } = require("./book.controller");
 const verifyAdminToken = require("../middleware/verifyAdminToken");
 const router = express.Router();
@@ -25,6 +29,11 @@ router.get("/", getAllBooks);
 
 // single book endpoint
 router.get("/recommend", recommendedBooks);
+router.post("/favourite/:id", addBookToFav);
+router.get("/favourite/", getBookToFav);
+router.get("/search", searchBooks);
+router.post("/rate/:bookId", rateBook);
+
 router.get("/:id", getSingleBook);
 
 // update a book endpoint
