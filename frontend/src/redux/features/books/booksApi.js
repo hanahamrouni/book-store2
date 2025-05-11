@@ -56,12 +56,36 @@ const booksApi = createApi({
       query: () => "/recommend",
       providesTags: ["Books"],
     }),
+    addBookToFav: builder.mutation({
+      query: (id) => ({
+        url: `/favourite/${id}`,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    }),
+    getFavoriteBook: builder.query({
+      query: () => "/favourite",
+      method: "GET",
+    }),
     deleteBook: builder.mutation({
       query: (id) => ({
         url: `/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Books"],
+    }),
+    rateBook: builder.mutation({
+      query: ({ bookId, stars }) => ({
+        url: `/rate/${bookId}`,
+        method: "POST",
+        body: { stars },
+      }),
+      invalidatesTags: ["Book"],
+    }),
+    searchBooks: builder.query({
+      query: (searchTerm) => `/search?search=${searchTerm}`,
     }),
   }),
 });
@@ -72,6 +96,10 @@ export const {
   useAddBookMutation,
   useUpdateBookMutation,
   useFetchRecommendedBooksQuery,
+  useAddBookToFavMutation,
   useDeleteBookMutation,
+  useGetFavoriteBookQuery,
+  useRateBookMutation,
+  useSearchBooksQuery,
 } = booksApi;
 export default booksApi;
